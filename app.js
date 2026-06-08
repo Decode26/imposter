@@ -20,12 +20,7 @@ const db = getDatabase(app);
 let currentRoomId = null;
 let localPlayerKey = null; 
 let isHost = false;
-let wordsPool = [
-    { secret: "Eiffel Tower", imposter: "Tower Bridge" },
-    { secret: "Hollywood", imposter: "Broadway" },
-    { secret: "iPhone", imposter: "Android" },
-    { secret: "Pizza", imposter: "Burger" }
-];
+let wordsPool = [];
 
 // DOM Navigation Elements
 const screens = {
@@ -35,8 +30,49 @@ const screens = {
     game: document.getElementById('game-screen')
 };
 
+// Function to fetch and parse the CSV file
+async function loadWordsFromCSV() {
+    try {
+        const response = await fetch('./words.csv');
+        const csvText = await response.text();
+        
+        // Split by lines and remove empty rows
+        const lines = csvText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        // Skip the header row (index 0) and loop through data
+        for (let i = 1; i < lines.length; i++) {
+            const rowValue = lines[i].trim();
+            if (rowValue) {
+                wordsPool.push({
+                    secret: rowValue // The single word from the row becomes the secret word
+                });
+            }
+        }
+        
+        for (let i = 1; i < lines.length; i++) {
+            const columns = lines[i].split(',');
+            if (columns.length >= 2) {
+                wordsPool.push({
+                    secret: columns[0].trim(),
+                    imposter: columns[1].trim()
+                });
+            }
+        }
+        console.log(`Successfully loaded ${wordsPool.length} word pairs from CSV.`);
+    } catch (error) {
+        console.error("Error loading CSV file:", error);
+        // Fallback pair just in case the file fails to load
+        wordsPool = [{ secret: "Eiffel Tower", imposter: "Tower Bridge" }];
+    }
+}
+
+
 // --- Initialization & Routing ---
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    // 1. Load the words first
+    await loadWordsFromCSV();
+
+    // 2. Run your existing URL checking logic
     const urlParams = new URLSearchParams(window.location.search);
     const roomIdParam = urlParams.get('id');
     
@@ -57,6 +93,9 @@ function showScreen(screenKey) {
 // --- Host Node Initialization ---
 document.getElementById('btn-create-room').addEventListener('click', async () => {
     const imposterCount = parseInt(document.getElementById('imposter-count').value) || 1;
+    // Capture the checkbox state
+    const giveFakeWord = document.getElementById('give-imposter-fake-word').checked;
+    
     currentRoomId = Math.random().toString(36).substring(2, 7).toUpperCase(); 
     isHost = true;
     localPlayerKey = "player_" + Date.now();
@@ -66,7 +105,8 @@ document.getElementById('btn-create-room').addEventListener('click', async () =>
         settings: {
             imposterCount: imposterCount,
             gameStarted: false,
-            hostKey: localPlayerKey
+            hostKey: localPlayerKey,
+            giveFakeWord: giveFakeWord
         }
     });
 
@@ -170,16 +210,26 @@ document.getElementById('btn-start-game').addEventListener('click', async () => 
     const players = data.players || {};
     const playerKeys = Object.keys(players);
     const imposterCount = data.settings.imposterCount || 1;
+    const giveFakeWord = data.settings.giveFakeWord || false; // Grab the setting
 
     if (playerKeys.length < imposterCount + 1) {
         alert("Not enough players to allocate selected Imposter count.");
         return;
     }
 
-    // Select random word pair
     const randomPair = wordsPool[Math.floor(Math.random() * wordsPool.length)];
+    let fakeWordForImposter = "None";
+
+    // If Fake Word is checked, grab a totally different random pair's secret word
+    if (giveFakeWord) {
+        let fakeSelection = wordsPool[Math.floor(Math.random() * wordsPool.length)];
+        // Ensure the fake word isn't the exact same as the secret word
+        while (fakeSelection.secret === randomPair.secret && wordsPool.length > 1) {
+            fakeSelection = wordsPool[Math.floor(Math.random() * wordsPool.length)];
+        }
+        fakeWordForImposter = fakeSelection.secret;
+    }
     
-    // Assign roles randomly
     const shuffledKeys = [...playerKeys].sort(() => Math.random() - 0.5);
     const updates = {};
 
@@ -192,7 +242,10 @@ document.getElementById('btn-start-game').addEventListener('click', async () => 
     });
 
     updates['/settings/gameStarted'] = true;
-    updates['/gameState'] = randomPair;
+    updates['/gameState'] = {
+        secret: randomPair.secret,
+        fakeWord: fakeWordForImposter // Add the fake word to game state
+    };
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
 });
@@ -206,14 +259,21 @@ function runGameplaySetup(roomData) {
 
     const localPlayer = roomData.players[localPlayerKey];
     const gameState = roomData.gameState;
+    const giveFakeWord = roomData.settings.giveFakeWord; // Grab setting
     const secretDisplay = document.getElementById('secret-display');
     const btnReveal = document.getElementById('btn-reveal');
 
     let privateAssignment = "";
     if (localPlayer.role === "imposter") {
-        privateAssignment = `IMPOSTER 🕵️‍♂️\n(Target Word: ${gameState.imposter})`;
+        if (giveFakeWord) {
+            // Option 1: Fake random word from CSV
+            privateAssignment = `😇 YOUR SECRET WORD:\n ${gameState.fakeWord}`;
+        } else {
+            // Option 2: Pure blind mode
+            privateAssignment = "🕵️‍♂️ YOU ARE THE IMPOSTER! Blend in and don't get caught!";
+        }
     } else {
-        privateAssignment = `INNOCENT 😇\n(Secret Word: ${gameState.secret})`;
+        privateAssignment = `😇 YOUR SECRET WORD:\n ${gameState.secret}`;
     }
 
     // Input handlers to bind card reveal interface actions safely

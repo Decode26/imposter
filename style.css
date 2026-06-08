@@ -149,10 +149,12 @@ button {
 .secret-box {
     margin: 2rem 0;
     padding: 2rem;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     border-radius: 8px;
     letter-spacing: 1px;
+    white-space: pre-wrap; /* Allows text to wrap safely if needed */
+    word-break: break-word;
 }
 
 .hidden-word {
@@ -177,4 +179,20 @@ button {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1rem;
+}
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+.label-inline {
+    margin-bottom: 0;
+    cursor: pointer;
+    user-select: none;
 }
