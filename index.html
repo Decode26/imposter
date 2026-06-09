@@ -61,23 +61,28 @@
          
          <div id="host-controls" class="host-only">
              <button id="btn-start-game" class="btn-primary">Start Game</button>
+             <button id="btn-close-room" class="btn-secondary" style="background-color: var(--danger); margin-top: 10px;">Close Room</button>
          </div>
          <p id="lobby-status" class="status-msg">Waiting for host to start...</p>
      </div>
 
      <div id="game-screen" class="screen">
-         <h2>Game In Progress</h2>
-         <div class="card reveal-card">
-             <p>Click and hold the button below to see your secret identity.</p>
-             <div id="secret-display" class="secret-box hidden-word">CONFIDENTIAL</div>
-             <button id="btn-reveal" class="btn-reveal">Hold to Reveal</button>
-         </div>
-         
-         <div id="host-end-controls" class="host-only">
-             <button id="btn-reset-game" class="btn-secondary">Back to Lobby</button>
-         </div>
-     </div>
- </div>
+        <h2>Game In Progress</h2>
+        <p style="text-align: center; margin-bottom: 1rem; color: var(--text-muted);">
+            Room Code: <strong id="game-room-code" class="highlight">XXXX</strong>
+        </p>
+        
+        <div class="card reveal-card">
+            <p>Click and hold the button below to see your secret identity.</p>
+            <div id="secret-display" class="secret-box hidden-word">CONFIDENTIAL</div>
+            <button id="btn-reveal" class="btn-reveal">Hold to Reveal</button>
+        </div>
+        
+        <div id="host-end-controls" class="host-only">
+            <button id="btn-reset-game" class="btn-secondary">Back to Lobby</button>
+        </div>
+    </div>
+</div>
 
  <script type="module" src="app.js"></script>
 </body>

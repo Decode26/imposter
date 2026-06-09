@@ -196,3 +196,18 @@ button {
     cursor: pointer;
     user-select: none;
 }
+
+.btn-kick {
+    background-color: var(--danger);
+    color: white;
+    border: none;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    width: auto;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-kick:hover {
+    background-color: #b91c1c;
+}

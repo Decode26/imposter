@@ -66,7 +66,6 @@ async function loadWordsFromCSV() {
     }
 }
 
-
 // --- Initialization & Routing ---
 window.addEventListener('DOMContentLoaded', async () => {
     // 1. Load the words first
@@ -138,6 +137,12 @@ document.getElementById('btn-join-game').addEventListener('click', async () => {
     }
 
     const roomData = snapshot.val();
+    // Block players from joining if the game is already in progress
+    if (roomData.settings && roomData.settings.gameStarted === true) {
+        errorEl.innerText = "This game is already in progress! You cannot join right now.";
+        return;
+    }
+
     const playersObj = roomData.players || {};
     
     // Enforce name uniqueness across active players
@@ -177,22 +182,50 @@ function setupLobbyListener() {
 
     onValue(roomRef, (snapshot) => {
         const data = snapshot.val();
-        if (!data) return;
+        if (!data) {
+            // If the host deletes the room, 'data' becomes null!
+            alert("This room has been closed by the host.");
+            window.location.search = "";
+            return;
+        }
+
+        //Check if the local player was booted by the host
+        const players = data.players || {};
+        if (!players[localPlayerKey]) {
+            alert("You have been removed from this room by the host.");
+            window.location.search = ""; // Wipes out URL parameters and restarts at home
+            return;
+        }
 
         // Sync player visual roster
-        const players = data.players || {};
         const playerListEl = document.getElementById('player-list');
         playerListEl.innerHTML = "";
         
         const playerKeys = Object.keys(players);
         document.getElementById('player-count').innerText = playerKeys.length;
 
+        // Render players + Kick buttons for the host
         playerKeys.forEach(key => {
             const li = document.createElement('li');
             li.innerText = players[key].name + (players[key].isHost ? " (👑 Host)" : "");
+            
+            // If current client is host, and this row isn't the host themselves, append a Kick option
+            if (isHost && key !== localPlayerKey) {
+                const kickBtn = document.createElement('button');
+                kickBtn.innerText = "Remove";
+                kickBtn.className = "btn-kick";
+                kickBtn.onclick = async () => {
+                    if(confirm(`Remove ${players[key].name} from the room?`)) {
+                        // Remove player path node from Firebase
+                        await set(ref(db, `rooms/${currentRoomId}/players/${key}`), null);
+                    }
+                };
+                li.appendChild(kickBtn);
+            }
+            
             playerListEl.appendChild(li);
         });
-
+        
         // Evaluate core game structural transitions
         if (data.settings.gameStarted) {
             runGameplaySetup(data);
@@ -253,6 +286,10 @@ document.getElementById('btn-start-game').addEventListener('click', async () => 
 // --- Interactive View State Mapping ---
 function runGameplaySetup(roomData) {
     showScreen('game');
+
+    // Set the room code text for gameplay visibility
+    document.getElementById('game-room-code').innerText = currentRoomId;
+
     if (isHost) {
         document.getElementById('host-end-controls').style.display = 'block';
     }
@@ -299,20 +336,54 @@ function runGameplaySetup(roomData) {
     btnReveal.ontouchend = (e) => { e.preventDefault(); hideIdentity(); };
 }
 
-// --- Game Reset System ---
+// --- Game Reset System with Automated Reveal ---
 document.getElementById('btn-reset-game').addEventListener('click', async () => {
-    const updates = {};
-    updates['/settings/gameStarted'] = false;
-    updates['/gameState'] = null;
-    
-    // Reset player assignment variables
-    const snapshot = await get(ref(db, `rooms/${currentRoomId}/players`));
-    const players = snapshot.val() || {};
-    Object.keys(players).forEach(key => {
-        updates[`/players/${key}/role`] = "pending";
-    });
+    try {
+        // 1. Fetch the player list to find the imposter before erasing roles
+        const snapshot = await get(ref(db, `rooms/${currentRoomId}/players`));
+        const players = snapshot.val() || {};
+        
+        const imposterNames = Object.values(players)
+            .filter(player => player.role === "imposter")
+            .map(player => player.name);
 
-    await update(ref(db, `rooms/${currentRoomId}`), updates);
+        const imposterText = imposterNames.length > 0 ? imposterNames.join(", ") : "None";
+
+        // 2. Alert the host locally, or update the database for everyone to see
+        alert(`🎉 Round Over!\n\nThe Imposter was: ${imposterText}`);
+
+        // 3. Clean up the database nodes for the next round
+        const updates = {};
+        updates['/settings/gameStarted'] = false;
+        updates['/gameState'] = null;
+        
+        Object.keys(players).forEach(key => {
+            updates[`/players/${key}/role`] = "pending";
+        });
+
+        await update(ref(db, `rooms/${currentRoomId}`), updates);
+
+    } catch (error) {
+        console.error("Error during game reset and reveal:", error);
+    }
+});
+
+// --- Manual Room Deletion by Host ---
+document.getElementById('btn-close-room').addEventListener('click', async () => {
+    if (confirm("Are you sure you want to close this room? All players will be disconnected.")) {
+        try {
+            // Reference to the entire room node
+            const roomRef = ref(db, 'rooms/' + currentRoomId);
+            
+            // Setting a node to null in Firebase deletes it completely
+            await set(roomRef, null);
+            
+            // Clean up local tracking and send host home
+            window.location.search = ""; 
+        } catch (error) {
+            console.error("Error deleting room:", error);
+        }
+    }
 });
 
 // --- Link Clipboard Utility ---
@@ -321,4 +392,20 @@ document.getElementById('btn-copy-link').addEventListener('click', () => {
     navigator.clipboard.writeText(inviteUrl).then(() => {
         alert("Invite link copied to clipboard!");
     });
+});
+
+// --- Prevent Accidental Refreshes or Back Navigation ---
+window.addEventListener('beforeunload', (event) => {
+    // Only warn the player if they are actively in a lobby or in a game
+    const isCurrentlyInRoom = currentRoomId && localPlayerKey;
+    
+    if (isCurrentlyInRoom) {
+        // Modern standard requires setting the return value and calling preventDefault
+        event.preventDefault();
+        
+        // Custom text is ignored by most modern browsers for security reasons,
+        // but setting this triggers the browser's native confirmation dialog.
+        event.returnValue = "Are you sure you want to leave the game? Your progress will be lost.";
+        return event.returnValue;
+    }
 });
