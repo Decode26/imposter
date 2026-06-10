@@ -4,6 +4,8 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>Imposter Web Game</title>
+ <!-- Favicon is coded into HTML. Alternate method is to create a .ico file -->
+ <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️‍♂️</text></svg>">
  <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -61,7 +63,8 @@
          
          <div id="host-controls" class="host-only">
              <button id="btn-start-game" class="btn-primary">Start Game</button>
-             <button id="btn-close-room" class="btn-secondary" style="background-color: var(--danger); margin-top: 10px;">Close Room</button>
+             <button id="btn-close-room" class="btn-secondary" style="background-color: var(--warning); margin-top: 20px;">Close Room</button>
+             <button id="btn-close-all-rooms" class="btn-secondary" style="background-color: var(--danger); margin-top: 20px;">Close All Rooms</button>
          </div>
          <p id="lobby-status" class="status-msg">Waiting for host to start...</p>
      </div>

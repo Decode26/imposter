@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 // TODO: Replace with your actual Firebase Project Configuration
 const firebaseConfig = {
@@ -407,5 +407,24 @@ window.addEventListener('beforeunload', (event) => {
         // but setting this triggers the browser's native confirmation dialog.
         event.returnValue = "Are you sure you want to leave the game? Your progress will be lost.";
         return event.returnValue;
+    }
+});
+
+// --- Global Clean-up: Close All Rooms Across the Platform ---
+document.getElementById('btn-close-all-rooms').addEventListener('click', async () => {
+    if (confirm("⚠️ WARNING: Are you sure you want to delete ALL open rooms across the database? This will disconnect every active player on the platform.")) {
+        try {
+            // Reference targeting the entire 'rooms' node
+            const allRoomsRef = ref(db, 'rooms');
+            
+            // Wipe the node clean
+            await remove(allRoomsRef);
+            
+            alert("All open rooms have been cleared successfully.");
+            window.location.search = ""; // Redirect the host back to the main screen
+        } catch (error) {
+            console.error("Error wiping all rooms:", error);
+            alert("Failed to close all rooms. Check your Firebase security rules console permissions.");
+        }
     }
 });
