@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-// TODO: Replace with your actual Firebase Project Configuration
+// Firebase Project Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyD3o6QdLYq4Fwsu_WzkIx2beDMZvHmvgh8",
     authDomain: "imposter-19b20.firebaseapp.com",
@@ -21,6 +21,8 @@ let currentRoomId = null;
 let localPlayerKey = null; 
 let isHost = false;
 let wordsPool = [];
+let lobbyTheme = null;
+let isMuted = false;
 
 // DOM Navigation Elements
 const screens = {
@@ -88,6 +90,48 @@ function showScreen(screenKey) {
     Object.values(screens).forEach(s => s.classList.remove('active'));
     screens[screenKey].classList.add('active');
 }
+
+function playThemeMusic() {
+    if (!lobbyTheme) {
+        lobbyTheme = new Audio('./Music/theme.mp3');
+        lobbyTheme.loop = true;
+    }
+    
+    // Dynamically adjust volume depending on state
+    lobbyTheme.volume = isMuted ? 0.0 : 0.30;
+    
+    // Show the audio control toggle button on screen
+    document.getElementById('sound-control-container').style.display = 'block';
+
+    lobbyTheme.play().catch(error => {
+        console.log("Audio playback initialization failed:", error);
+    });
+}
+
+function stopThemeMusic() {
+    if (lobbyTheme) {
+        lobbyTheme.pause();
+        lobbyTheme.currentTime = 0;
+    }
+    // Hide the toggle button when music is totally stopped (e.g., back on home screen)
+    document.getElementById('sound-control-container').style.display = 'none';
+}
+
+// --- Sound Mute Toggle Event Listener ---
+document.getElementById('btn-toggle-sound').addEventListener('click', () => {
+    if (!lobbyTheme) return;
+
+    isMuted = !isMuted; // Invert sound state
+    
+    if (isMuted) {
+        lobbyTheme.volume = 0.0;
+        document.getElementById('btn-toggle-sound').innerText = "🔇";
+    } else {
+        lobbyTheme.volume = 0.15;
+        document.getElementById('btn-toggle-sound').innerText = "🔊";
+    }
+});
+
 
 // --- Host Node Initialization ---
 document.getElementById('btn-create-room').addEventListener('click', async () => {
@@ -167,6 +211,9 @@ document.getElementById('btn-join-game').addEventListener('click', async () => {
         isHost: isHost
     });
 
+    // START THE MUSIC HERE
+    playThemeMusic();
+
     setupLobbyListener();
     showScreen('lobby');
 });
@@ -228,9 +275,11 @@ function setupLobbyListener() {
         
         // Evaluate core game structural transitions
         if (data.settings.gameStarted) {
+            playThemeMusic();
             runGameplaySetup(data);
         } else if (screens.game.classList.contains('active') && !data.settings.gameStarted) {
             // Graceful exit fallback to lobby if reset occurs
+            stopThemeMusic();
             showScreen('lobby');
         }
     });
@@ -339,6 +388,9 @@ function runGameplaySetup(roomData) {
 // --- Game Reset System with Automated Reveal ---
 document.getElementById('btn-reset-game').addEventListener('click', async () => {
     try {
+        // Stop the background theme track immediately when host clicks reset
+        stopThemeMusic();
+        
         // 1. Fetch the player list to find the imposter before erasing roles
         const snapshot = await get(ref(db, `rooms/${currentRoomId}/players`));
         const players = snapshot.val() || {};

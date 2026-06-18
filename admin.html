@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imposter Game - Control Panel</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Specific tweaks to anchor everything in the center of the admin panel */
+        .admin-card {
+            border: 2px solid var(--danger);
+            text-align: center;
+        }
+        .admin-warning {
+            color: var(--text-muted);
+            margin: 1rem 0 1.5rem 0;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🛠️ Admin Panel</h1>
+        
+        <div class="card admin-card">
+            <h2>Database Clean-up</h2>
+            <p class="admin-warning">
+                Pressing the button below will immediately erase the entire <strong>rooms</strong> branch in Firebase. All global active game instances will terminate instantly.
+            </p>
+            <button id="btn-admin-close-all" class="btn-primary" style="background-color: var(--danger);">
+                Wipe All Open Rooms
+            </button>
+        </div>
+
+        <p style="text-align: center;">
+            <a href="index.html" style="color: var(--primary); text-decoration: none; font-weight: bold;">← Return to Main Page</a>
+        </p>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
